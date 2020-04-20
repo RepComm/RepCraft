@@ -3,7 +3,6 @@ package com.roguecircuitry.repcraft;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import com.google.gson.JsonObject;
@@ -14,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
+import org.graalvm.polyglot.Source;
 
 /**
  * Hello world!
@@ -80,29 +80,21 @@ public final class RepCraft extends JavaPlugin {
       if (!pkgJson.has("main")) continue;
 
       pkgJsonMain = pkgJson.get("main").getAsString();
-      
+
       jsPluginFile = new File(pluginSubDir.getAbsoluteFile() + "/" + pkgJsonMain);
       if (!jsPluginFile.exists()) {
         System.err.println("Couldn't import 'main' : " + jsPluginFile.toPath() + ", ignoring!");
         continue;
       }
-
       try {
-        this.ctx.eval("js", new String(Files.readAllBytes(jsPluginFile.toPath())));
+        Source src = Source.newBuilder("js", jsPluginFile).build();
+        this.ctx.eval(src);
       } catch (Exception e) {
-        //Technically we already handled this, just skip this script
+        //Just skip this script
         e.printStackTrace();
         continue;
       }
     }
-
-    try {
-      this.ctx.eval("js", "print('[js] Hello World');");
-    } catch (Exception ex) {
-      System.err.println(ex);
-      return;
-    }
-
     jsc = new JSCommand(this);
 
     this.getCommand("js").setExecutor(this.jsc);
@@ -118,6 +110,5 @@ public final class RepCraft extends JavaPlugin {
 
   @Override
   public void onDisable() {
-
   }
 }
