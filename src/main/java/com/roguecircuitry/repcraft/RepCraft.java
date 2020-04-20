@@ -15,14 +15,16 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.Source;
 
-/**
- * Hello world!
+/**RepCraft main Spigot plugin class
+ * Most of the core logic is in here
  */
 public final class RepCraft extends JavaPlugin {
   Context ctx;
   JSCommand jsc;
   Value jsBinding;
   File pluginFile, pluginsDir, jsRepCraftDir, jsPluginsDir;
+
+  JsonParser jsonParser;
 
   private void critial(String msg) {
     System.err.println("[RepCraft][CRITICAL] " + msg);
@@ -35,69 +37,82 @@ public final class RepCraft extends JavaPlugin {
     this.ctx = Context.newBuilder("js").allowAllAccess(true).build();
     this.jsBinding = this.ctx.getBindings("js");
 
+    this.jsonParser = new JsonParser();
+
     File jsPluginsDir = Paths.get("repcraft/js-plugins").toAbsolutePath().toFile();
-    
-    if (!jsPluginsDir.exists()) {
+
+    if (jsPluginsDir.exists()) {
+      this.loadPluginsFrom(jsPluginsDir);
+    } else {
       if (jsPluginsDir.mkdirs()) {
         System.out.println("[RepCraft] Created " + jsPluginsDir.getAbsolutePath());
       } else {
         this.critial("Failed to create all of the necessary dirs for <spigot>/repcraft/js-plugins");
-        return;
       }
     }
+    jsc = new JSCommand(this);
 
+    this.getCommand("js").setExecutor(this.jsc);
+  }
+
+  public void loadPluginsFrom (File jsPluginsDir) {
     File[] subdirs = jsPluginsDir.listFiles(new FileFilter() {
       public boolean accept(File f) {
         return f.isDirectory();
       }
     });
 
-    File pluginSubDir = null;
-    File packageJson = null;
-    JsonObject pkgJson = null;
-    JsonParser parser = new JsonParser();
-    String pkgJsonMain = null;
-    File jsPluginFile = null;
+    this.loadPlugins(subdirs);
+  }
 
+  public void loadPlugins(File[] subdirs) {
+    File pluginSubDir, packageJson;
     for (int i = 0; i < subdirs.length; i++) {
       pluginSubDir = subdirs[i];
-
       packageJson = new File(pluginSubDir.getAbsoluteFile() + "/package.json");
-      try {
-        pkgJson = parser.parse(
-          new JsonReader(
-            new FileReader(
-              packageJson
-            )
-          )
-        ).getAsJsonObject();
 
-      } catch (Exception ex) {
-        // Suppress, file doesn't exist , no biggy :)
-        continue;
-      }
-      // Skip package.json that don't have "main" in them
-      if (!pkgJson.has("main")) continue;
-
-      pkgJsonMain = pkgJson.get("main").getAsString();
-
-      jsPluginFile = new File(pluginSubDir.getAbsoluteFile() + "/" + pkgJsonMain);
-      if (!jsPluginFile.exists()) {
-        System.err.println("Couldn't import 'main' : " + jsPluginFile.toPath() + ", ignoring!");
-        continue;
-      }
-      try {
-        Source src = Source.newBuilder("js", jsPluginFile).build();
-        this.ctx.eval(src);
-      } catch (Exception e) {
-        //Just skip this script
-        e.printStackTrace();
-        continue;
+      if (this.loadPlugin(packageJson, pluginSubDir)) {
+        System.out.println("[RepCraft] Loaded plugin " + packageJson.getName());
       }
     }
-    jsc = new JSCommand(this);
+  }
 
-    this.getCommand("js").setExecutor(this.jsc);
+  public boolean loadPlugin(File packageJson, File pluginSubDir) {
+    JsonObject pkgJson;
+    String pkgJsonMain;
+    File jsPluginFile;
+
+    try {
+      pkgJson = this.jsonParser.parse(
+        new JsonReader(
+          new FileReader(
+            packageJson
+          )
+        )
+      ).getAsJsonObject();
+    } catch (Exception ex) {
+      // Suppress, file doesn't exist , no biggy :)
+      return false;
+    }
+    // Skip package.json that don't have "main" in them
+    if (!pkgJson.has("main")) return false;
+
+    pkgJsonMain = pkgJson.get("main").getAsString();
+
+    jsPluginFile = new File(pluginSubDir.getAbsoluteFile() + "/" + pkgJsonMain);
+    if (!jsPluginFile.exists()) {
+      System.err.println("Couldn't import 'main' : " + jsPluginFile.toPath() + ", ignoring!");
+      return false;
+    }
+    try {
+      Source src = Source.newBuilder("js", jsPluginFile).build();
+      this.ctx.eval(src);
+    } catch (Exception e) {
+      // Just skip this script
+      e.printStackTrace();
+      return false;
+    }
+    return true;
   }
 
   public Object eval(String js) {
