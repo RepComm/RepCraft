@@ -9,7 +9,7 @@ This project is meant to address some issues I have with scriptcraft:
 - Not enough standardized documentation
 - Not enough documented caveats
 - Relies on deprecated java APIs
-
+- It evals every JS file within its plugin structure
 
 This project is a SpigotMC API `JavaPlugin`<br/>
 It gets its capabilities from GraalVM, a modern polyglot virtual machine<br/>
