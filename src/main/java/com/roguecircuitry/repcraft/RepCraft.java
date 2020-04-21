@@ -4,19 +4,24 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
+import com.roguecircuitry.repcraft.resources.DefaultResources;
 
+import org.bukkit.event.EventPriority;
+import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.Source;
 
-/**RepCraft main Spigot plugin class
- * Most of the core logic is in here
+/**
+ * RepCraft main Spigot plugin class Most of the core logic is in here
  */
 public final class RepCraft extends JavaPlugin {
   Context ctx;
@@ -33,11 +38,37 @@ public final class RepCraft extends JavaPlugin {
 
   @Override
   public void onEnable() {
+    // Initialize the JavaScript engine/bindings
     System.out.println("[RepCraft] Initializing GraalVM js context!");
     this.ctx = Context.newBuilder("js").allowAllAccess(true).build();
     this.jsBinding = this.ctx.getBindings("js");
 
+    getServer().getPluginManager().registerEvents(new JSEvents(this), this);
+
+    // Create a JSON parser so we can load package.json's for all of the plugins
     this.jsonParser = new JsonParser();
+
+    File repcraftDir = Paths.get("repcraft").toAbsolutePath().toFile();
+    List<File> sources = new ArrayList<File>();
+    if (!repcraftDir.exists()) {
+      if (!repcraftDir.mkdir()) {
+        this.critial("Could not create <spigot>/repcomm ! This is required. Disabling.");
+        return;
+      }
+      String resFromPath = "/com/roguecircuitry/repcraft/resources/";
+
+      // Unpack necessary js
+      File unpacked = new File(repcraftDir, "repcraft.mjs");
+      DefaultResources.unpackResTo(resFromPath + "repcraft.mjs", unpacked, true);
+      sources.add(unpacked);
+    } else {
+      sources.add(new File(repcraftDir, "repcraft.mjs"));
+    }
+    for (File s : sources) {
+      if (this.loadSource(s)) {
+        System.err.println("Loaded " + s.getAbsolutePath());
+      }
+    }
 
     File jsPluginsDir = Paths.get("repcraft/js-plugins").toAbsolutePath().toFile();
 
@@ -55,7 +86,7 @@ public final class RepCraft extends JavaPlugin {
     this.getCommand("js").setExecutor(this.jsc);
   }
 
-  public void loadPluginsFrom (File jsPluginsDir) {
+  public void loadPluginsFrom(File jsPluginsDir) {
     File[] subdirs = jsPluginsDir.listFiles(new FileFilter() {
       public boolean accept(File f) {
         return f.isDirectory();
@@ -83,32 +114,33 @@ public final class RepCraft extends JavaPlugin {
     File jsPluginFile;
 
     try {
-      pkgJson = this.jsonParser.parse(
-        new JsonReader(
-          new FileReader(
-            packageJson
-          )
-        )
-      ).getAsJsonObject();
+      pkgJson = this.jsonParser.parse(new JsonReader(new FileReader(packageJson))).getAsJsonObject();
     } catch (Exception ex) {
       // Suppress, file doesn't exist , no biggy :)
       return false;
     }
     // Skip package.json that don't have "main" in them
-    if (!pkgJson.has("main")) return false;
+    if (!pkgJson.has("main"))
+      return false;
 
     pkgJsonMain = pkgJson.get("main").getAsString();
 
     jsPluginFile = new File(pluginSubDir.getAbsoluteFile() + "/" + pkgJsonMain);
-    if (!jsPluginFile.exists()) {
+
+    if (!this.loadSource(jsPluginFile)) {
       System.err.println("Couldn't import 'main' : " + jsPluginFile.toPath() + ", ignoring!");
       return false;
     }
+    return true;
+  }
+
+  public boolean loadSource(File source) {
+    if (!source.exists())
+      return false;
     try {
-      Source src = Source.newBuilder("js", jsPluginFile).build();
+      Source src = Source.newBuilder("js", source).build();
       this.ctx.eval(src);
     } catch (Exception e) {
-      // Just skip this script
       e.printStackTrace();
       return false;
     }

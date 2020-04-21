@@ -1,19 +1,38 @@
 # RepCraft
 Modern JavaScript for modern minecraft
 
-This project is meant to address some issues I have with scriptcraft:
+## Disclaimers
+This project is in pre-release state.<br/>
+Feature may work, but are not fully tested<br/>
+Be aware that ScriptCraft compatibility is not a priority<br/>
 
-- Modern js (classes, let/const, arrow-functions, typed arrays, networking)
+## Why is this a thing?
+This project is addresses issues I have with scriptcraft:
+
+- No support for modern JS (const, let, class, arrow-functions, es modules ..)
 - Unfinished auto-complete
 - Not enough debugging capabilities
-- Not enough standardized documentation
-- Not enough documented caveats
+- Not enough documentation
 - Relies on deprecated java APIs
-- It evals every JS file within its plugin structure
+- Evals scripts that don't need to be loaded
 
 This project is a SpigotMC API `JavaPlugin`<br/>
 It gets its capabilities from GraalVM, a modern polyglot virtual machine<br/>
 with support for a BUNCH of languages, including Java, and JavaScript.
+
+## Current features
+- ES Module `package.json` based plugins
+- Java interop
+- /js live eval command
+
+## Planned features
+- Sandboxed permissions per-plugin
+- Persistent storage per-plugin
+- Debug hot-reloading (file-watch) per-plugin
+- Persistent debug state (after reload, states can be recovered)
+- WebSocket / WebSocketServer
+- Non-blocking TCP/UDP sockets
+- WebWorker implementation
 
 ## Installing
 This plugin makes use of GraalVM<br/>
