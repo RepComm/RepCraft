@@ -12,8 +12,6 @@ import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import com.roguecircuitry.repcraft.resources.DefaultResources;
 
-import org.bukkit.event.EventPriority;
-import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.graalvm.polyglot.Context;
@@ -84,6 +82,7 @@ public final class RepCraft extends JavaPlugin {
     jsc = new JSCommand(this);
 
     this.getCommand("js").setExecutor(this.jsc);
+    this.getCommand("js").setTabCompleter(this.jsc);
   }
 
   public void loadPluginsFrom(File jsPluginsDir) {
@@ -153,6 +152,27 @@ public final class RepCraft extends JavaPlugin {
 
   public void put(String key, Object value) {
     this.jsBinding.putMember(key, value);
+  }
+
+  /**Get a variable from a context
+   * If `from` is not supplied, it tries to fetch from the jsBinding (global)
+   * @param from context (typically null or an object containing the key)
+   * @param key of from or global to access with
+   * @return null if non-existent, value accessable by the key
+   */
+  public Value get (Value from, String key) {
+    if (from == null) {
+      if (this.jsBinding.hasMember(key)) {
+        return this.jsBinding.getMember(key);
+      } else {
+        return null;
+      }
+    }
+    if (from.hasMember(key)) {
+      return from.getMember(key);
+    } else {
+      return null;
+    }
   }
 
   @Override
