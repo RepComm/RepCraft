@@ -15,9 +15,12 @@ import org.graalvm.polyglot.Value;
 public class JSCommand implements CommandExecutor, TabCompleter {
   RepCraft master;
 
+  Value jsOnTabCompleteFunc;
+
   public JSCommand(RepCraft master) {
     super();
     this.master = master;
+    this.jsOnTabCompleteFunc = (Value)this.master.eval("onTabComplete");
   }
 
   @Override
@@ -48,10 +51,14 @@ public class JSCommand implements CommandExecutor, TabCompleter {
   public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
     //Split the last space separated key up by object member access '.'
     String toAutoComplete = args[args.length-1];
+
+    //A list to store tab completes in
     List<String> results = new ArrayList<String>();
     
-    Value f = (Value)this.master.eval("onTabComplete");
-    Value result = f.execute(toAutoComplete);
+    //Send over to js onTabComplete global function
+    Value result = this.jsOnTabCompleteFunc.execute(toAutoComplete);
+
+    //Put the resulting js Array<String> into our List<String>
     for (int i=0; i<result.getArraySize(); i++) {
       results.add( result.getArrayElement(i).asString() );
     }

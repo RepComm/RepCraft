@@ -11,6 +11,7 @@ Modern JavaScript for modern minecraft
 - ES Module support
 - classes, let/const, arrow-functions, import/export
 - Spigot event listening
+- Tab complete support
 
 ## Planned features
 - Sandboxed permissions
@@ -20,7 +21,6 @@ Modern JavaScript for modern minecraft
 - WebSocket / WebSocketServer
 - Non-blocking TCP/UDP sockets
 - WebWorker implementation
-- Full tab-complete support
 
 ## Planned plugins
 A set of pre-defined plugins will be<br/>

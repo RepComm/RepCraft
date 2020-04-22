@@ -1,6 +1,8 @@
 
 //POLYFILL because no window object
+globalThis.window = globalThis;
 let window = globalThis;
+globalThis.global = globalThis;
 //END POLYFILL
 
 const getProps = (obj) => {
@@ -12,8 +14,10 @@ const getProps = (obj) => {
   return [...properties.keys()];//.filter(item => typeof obj[item] === 'function')
 }
 
+window.getProps = getProps;
+
 const keyToDesc = (obj, key) => {
-  return key + " : " + typeof(obj[key]);
+  return key + " : " + typeof (obj[key]);
 }
 
 export class EvalComplete {
@@ -21,6 +25,7 @@ export class EvalComplete {
     this.lastObj = undefined;
     this.potentialObj = undefined;
     this.prop = undefined;
+    /**@type {Array<String>} */
     this.lastKeys = undefined;
 
     this.completeStrings = new Array();
@@ -33,9 +38,7 @@ export class EvalComplete {
    * @returns {boolean} successful iteration or not (not necessarily fail when false)
    */
   complete(str, allPropsOfStr = false) {
-    if (str.includes(" ")) {
-      str = str.split(" ").pop();
-    }
+    if (str[str.length - 1] == ".") allPropsOfStr = true;
     if (allPropsOfStr) {
       str = str.substring(0, str.length - 1);
       try {
@@ -47,7 +50,7 @@ export class EvalComplete {
           this.lastObj = this.potentialObj;
           //Set complete strings to all keys of object
           this.completeStrings = getProps(this.lastObj);
-          this.completeStrings.forEach((v)=>{
+          this.completeStrings.forEach((v) => {
             return keyToDesc(this.lastObj, v);
           });
         }
@@ -61,33 +64,35 @@ export class EvalComplete {
       this.prop = str.split(".").pop();
 
       //If we completed the word property return it by itself
-      if (this.lastObj && this.lastObj[this.prop]) {
-        this.completeStrings.length = 1;
-        this.completeStrings[0] = keyToDesc(this.lastObj, this.prop);
-      } else { //Else, try to complete the property be seeing if we have a part of it
-        if (this.lastObj === undefined) {
-          //If we don't have a last object and we're not referencing subobjects
-          if (!str.includes(".")) {
-            //Use global window object as reference for autocomplete on global
-            this.lastObj = window;
-          }
+      // if (this.lastObj && this.lastObj[this.prop]) {
+      //   this.completeStrings.length = 1;
+      //   this.completeStrings[0] = keyToDesc(this.lastObj, this.prop);
+      // } else { //Else, try to complete the property be seeing if we have a part of it
+      if (this.lastObj === undefined) {
+        //If we don't have a last object and we're not referencing subobjects
+        if (!str.includes(".")) {
+          //Use global window object as reference for autocomplete on global
+          this.lastObj = window;
         }
-        //If our last object reference is actually an object
-        if (this.lastObj instanceof Object) {
-          //Get its keys
-          this.lastKeys = getProps(this.lastObj);//Object.keys(this.lastObj);
-          //Clear our returned strings
-          this.completeStrings.length = 0;
-          //Loop through keys to see if we can match them with our search prop
-          for (let key of this.lastKeys) {
-            //if (key.startsWith(this.prop)) {
-            if (key.includes(this.prop)) {
-              key = keyToDesc(this.lastObj, key);
-              this.completeStrings.push(key);
-            }
+      }
+      //If our last object reference is actually an object
+      if (this.lastObj instanceof Object) {
+        //Get its keys
+        this.lastKeys = getProps(this.lastObj);//Object.keys(this.lastObj);
+        //Clear our returned strings
+        this.completeStrings.length = 0;
+        //Loop through keys to see if we can match them with our search prop
+        let matchkey;
+        for (let key of this.lastKeys) {
+          matchkey = key.toLowerCase(); //More matching!
+          //if (key.startsWith(this.prop)) {
+          if (matchkey.includes(this.prop.toLowerCase())) {
+            key = keyToDesc(this.lastObj, key);
+            this.completeStrings.push(key);
           }
         }
       }
+      //}
       //}
     }
   }

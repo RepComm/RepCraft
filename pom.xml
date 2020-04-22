@@ -30,9 +30,9 @@
     </dependency>
     <!--This adds the graalvm SDK API artifact to the build -->
     <dependency>
-      <groupId>org.graalvm</groupId>
+      <groupId>org.graalvm.sdk</groupId>
       <artifactId>graal-sdk</artifactId>
-      <version>0.30</version>
+      <version>20.0.0</version>
     </dependency>
     <!--This adds the Bukkit API artifact to the build -->
     <!-- Do not include this in the pom.xml file if the Spigot API is already added -->
