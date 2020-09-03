@@ -1,31 +1,8 @@
-# RepCraft
-Modern JavaScript for modern minecraft
+# repcraft
+Has moved to https://github.com/grakkit/
 
-## Wiki
-[See the RepCraft wiki](https://github.com/RepComm/RepCraft/wiki)
+Now used by me to work on experiment features / grakkit bug repros
 
-## Current features
-- `package.json` based JS plugin loading
-- Full java/javascript interop
-- /js eval command
-- ES Module support
-- classes, let/const, arrow-functions, import/export
-- Spigot event listening
-- Tab complete support
-
-## Planned features
-- Sandboxed permissions
-- Persistent storage
-- Debug hot-reloading (file-watch)
-- Persistent debug state (after reload, states can be recovered)
-- WebSocket / WebSocketServer
-- Non-blocking TCP/UDP sockets
-- WebWorker implementation
-
-## Planned plugins
-A set of pre-defined plugins will be<br/>
-available (and not enabled, but installed by default)
-
-- A programmable Turtle class
-- A voxel-to-binary storage container
-- HandTool extendable modules
+## Currenting tackling:
+- dynamic imports (graal has some issues with this rn)
+- replacement for nashorn accessors functionality (that doesn't use nashorn compat)
