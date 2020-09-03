@@ -2,7 +2,7 @@ name: RepCraft
 version: 1.2
 main: com.roguecircuitry.repcraft.RepCraft
 api-version: 1.13
-commands:
-   js:
-      description: RepCraft - Modern JS for modern minecraft
-      usage: /js <code>
+# commands:
+#    js:
+#       description: RepCraft - Modern JS for modern minecraft
+#       usage: /js <code>

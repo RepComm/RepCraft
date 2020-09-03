@@ -1,106 +1,130 @@
 
-//POLYFILL because no window object
-globalThis.window = globalThis;
-let window = globalThis;
-globalThis.global = globalThis;
-//END POLYFILL
+const Bukkit = Java.type('org.bukkit.Bukkit');
+const Command = Java.extend(Java.type('org.bukkit.command.Command'));
 
-const getProps = (obj) => {
-  let properties = new Set();
-  let currentObj = obj;
-  do {
-    Object.getOwnPropertyNames(currentObj).map(item => properties.add(item));
-  } while ((currentObj = Object.getPrototypeOf(currentObj)))
-  return [...properties.keys()];//.filter(item => typeof obj[item] === 'function')
+const File = Java.type("java.io.File");
+const System = Java.type("java.lang.System");
+const Source = org.graalvm.polyglot.Source;
+
+const server = Bukkit.getServer();
+const manager = server.getPluginManager();
+const plugin = manager.getPlugin("RepCraft");
+
+//grabbed from grakkit/core
+const commandMap = server.getClass().getDeclaredField("commandMap");
+commandMap.setAccessible(true);
+const registry = commandMap.get(server);
+
+function getCommand (name) {
+  return registry.getCommand(name);
 }
 
-window.getProps = getProps;
-
-const keyToDesc = (obj, key) => {
-  return key + " : " + typeof (obj[key]);
+function createCommand (name, exec, tab) {
+  if (!name) throw `Must provide valid name, was ${name}`;
+  if (!exec) throw `Must provide execute method`;
+  if (typeof(exec) != "function") throw `execute must be a type of function, was ${typeof(exec)}`;
+  // let cmd = new Command​(name, {execute:execute,onTabComplete:tab });
+  // registry.register("RepCraft", cmd);
+  // return cmd;
+  let cmd = new Command(name, {
+    execute: exec
+  });
+  registry.register("repcraft", cmd);
+  return cmd;
 }
 
-export class EvalComplete {
-  constructor() {
-    this.lastObj = undefined;
-    this.potentialObj = undefined;
-    this.prop = undefined;
-    /**@type {Array<String>} */
-    this.lastKeys = undefined;
-
-    this.completeStrings = new Array();
+createCommand("js", (sender, cmd, args)=>{
+  // sender.sendMessage("YAY IT WORKS");
+  let code = "";
+  for (let i=0; i<args.length; i++) {
+    code += args[i] + " ";
   }
+  let res = globalThis["repcraft"].eval(code);
+  console.log(res);
+  return true;
+});
+globalThis.createCommand = createCommand;
 
-  /**Try to complete a string
-   * Values that can complete are stored in completeStrings property
-   * @param {string} str String to auto-complete
-   * @param {boolean} allPropsOfStr true when trying to get all props of object string refers to
-   * @returns {boolean} successful iteration or not (not necessarily fail when false)
-   */
-  complete(str, allPropsOfStr = false) {
-    if (str[str.length - 1] == ".") allPropsOfStr = true;
-    if (allPropsOfStr) {
-      str = str.substring(0, str.length - 1);
-      try {
-        //Try to get an object represented by the string first
-        this.potentialObj = eval(str);
-        //If the object isn't falsy
-        if (this.potentialObj) {
-          //Set last object to evaluated object
-          this.lastObj = this.potentialObj;
-          //Set complete strings to all keys of object
-          this.completeStrings = getProps(this.lastObj);
-          this.completeStrings.forEach((v) => {
-            return keyToDesc(this.lastObj, v);
-          });
-        }
-      } catch (ex) {
-        //No match
-        console.warn(ex);
-      }
+/**@param {any} byteBuffer
+ * @returns {ArrayBuffer}
+ */
+function byteBufferToArrayBuffer(byteBuffer) {
+  if (!byteBuffer) throw `bytes were ${byteBuffer}, length ${byteBuffer.length}, cannot read`;
+  let result = new Int8Array(byteBuffer.length);
+  for (let i = 0; i < byteBuffer.length; i++) {
+    result[i] = byteBuffer[i];
+  }
+  return result.buffer;
+}
+
+function fread(url) {
+  const f = new java.io.File(url);
+  if (!f.exists()) throw `Can't read url ${url}, file doesn't exist`;
+
+  return java.nio.file.Files.readAllBytes(f.toPath());
+}
+
+function byteBufferToString(bytes) {
+  return new java.lang.String(bytes);
+}
+
+function graaljsBullShitDynamicImportPolyfill(fpath) {
+  let source = new File(fpath);
+
+  let src;
+  let mod;
+  try {
+    src = Source.newBuilder("js", source).mimeType("application/javascript+module").build();
+    mod = globalThis["java-js-ctx"].eval(src);
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
+  return mod;
+}
+
+globalThis["import"] = graaljsBullShitDynamicImportPolyfill;
+
+const fileRoot = new File(System.getProperty("user.dir"));
+const fileRepCraft = new File(fileRoot, "repcraft");
+if (!fileRepCraft.exists()) {
+  if (!fileRepCraft.mkdir()) throw "Couldn't create server/repcraft dir";
+}
+const filePlugins = new File(fileRoot, "repcraft/js-plugins");
+if (!filePlugins.exists()) {
+  if (!filePlugins.mkdir()) throw "Couldn't create server/repcraft/js-plugins dir";
+}
+
+const importModules = () => {
+  console.log("repcraft.mjs will now import modules from", filePlugins.getAbsolutePath());
+  let subFiles = filePlugins.listFiles();
+  let filePkg;
+  let f;
+  for (let i = 0; i < subFiles.length; i++) {
+    f = subFiles[i];
+    // console.log(f.getAbsolutePath());
+    if (!f.isDirectory()) continue;
+    filePkg = new File(f, "package.json");
+    if (!filePkg.exists()) {
+      console.log(`Skipping ${f.getName()}, no package.json`);
+      continue;
+    }
+    let jsonPkg = JSON.parse(
+      byteBufferToString(
+        fread(`${f.getAbsolutePath()}/package.json`)
+      )
+    );
+    console.log(f.getName(), JSON.stringify(jsonPkg));
+    if (jsonPkg.main && typeof (jsonPkg.main) == "string") {
+      let mpath = `${f.getAbsolutePath()}/${jsonPkg.main}`;
+      // console.log("dyn import", mpath);
+      let mod = globalThis.import(mpath);
+      // console.log(`dyn import returns ${mod}`);
     } else {
-      //if (this.lastObj) {
-      //Get the last bit after the last period
-      this.prop = str.split(".").pop();
-
-      //If we completed the word property return it by itself
-      // if (this.lastObj && this.lastObj[this.prop]) {
-      //   this.completeStrings.length = 1;
-      //   this.completeStrings[0] = keyToDesc(this.lastObj, this.prop);
-      // } else { //Else, try to complete the property be seeing if we have a part of it
-      if (this.lastObj === undefined) {
-        //If we don't have a last object and we're not referencing subobjects
-        if (!str.includes(".")) {
-          //Use global window object as reference for autocomplete on global
-          this.lastObj = window;
-        }
-      }
-      //If our last object reference is actually an object
-      if (this.lastObj instanceof Object) {
-        //Get its keys
-        this.lastKeys = getProps(this.lastObj);//Object.keys(this.lastObj);
-        //Clear our returned strings
-        this.completeStrings.length = 0;
-        //Loop through keys to see if we can match them with our search prop
-        let matchkey;
-        for (let key of this.lastKeys) {
-          matchkey = key.toLowerCase(); //More matching!
-          //if (key.startsWith(this.prop)) {
-          if (matchkey.includes(this.prop.toLowerCase())) {
-            key = keyToDesc(this.lastObj, key);
-            this.completeStrings.push(key);
-          }
-        }
-      }
-      //}
-      //}
+      console.log("skipping import of", f.getAbsolutePath(), "no valid main field in package.json");
     }
   }
 }
 
-let tabCompleter = new EvalComplete();
+importModules();
 
-globalThis.onTabComplete = function (str) {
-  tabCompleter.complete(str);
-  return tabCompleter.completeStrings;
-}
